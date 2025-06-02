@@ -767,6 +767,71 @@ body.light-theme .timer-time.warning {
 body.light-theme .timer-time.critical {
   color: #dc2626;
 }
+
+/* Toast Notification */
+.toast-notification {
+  position: fixed;
+  top: 0; /* Na samej górze */
+  left: 50%;
+  transform: translateX(-50%) translateY(-100%); /* Ukryty powyżej ekranu */
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 0 0 15px 15px; /* Zaokrąglone tylko dolne rogi */
+  font-weight: 600;
+  font-size: 0.9rem;
+  z-index: 999;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 90%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.toast-notification.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0); /* Wysuwa się w dół */
+}
+
+.toast-notification.hide {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-100%); /* Chowa się do góry */
+}
+
+/* Mobile adjustments for toast */
+@media (max-width: 768px) {
+  .toast-notification {
+    font-size: 0.85rem;
+    padding: 10px 16px;
+    max-width: 85%;
+    border-radius: 0 0 12px 12px;
+  }
+}
+
+/* Light theme styles for toast */
+body.light-theme .toast-notification {
+  background: linear-gradient(135deg, #1e40af, #1d4ed8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+}
+
+body.light-theme .toast-notification.success {
+  background: linear-gradient(135deg, #059669, #047857);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+body.light-theme .toast-notification.warning {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+}
+
+body.light-theme .toast-notification.danger {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
   </style>
 </head>
 <body>
@@ -778,6 +843,7 @@ body.light-theme .timer-time.critical {
     </label>
     <span class='theme-toggle-label'>☀️</span>
   </div>
+  <div class='toast-notification' id='toastNotification'></div>
   <div class='container'>
     <div class='header'>
       <h1>🎵 Subwoofer Controller</h1>
@@ -944,6 +1010,61 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+}
+
+// Toast Notification System
+let toastTimeout = null;
+
+function showToast(message, type = 'info', duration = 2000) {
+  const toast = document.getElementById('toastNotification');
+  if (!toast) return;
+  
+  // Clear existing timeout
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+  }
+  
+  // Remove hide class if exists
+  toast.classList.remove('hide');
+  
+  // Set message and type
+  toast.textContent = message;
+  toast.className = `toast-notification ${type}`;
+  
+  // Show toast
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+  
+  // Add vibration feedback if available
+  if (navigator.vibrate) {
+    if (type === 'danger') {
+      navigator.vibrate([100, 50, 100, 50, 100]);
+    } else if (type === 'warning') {
+      navigator.vibrate([100, 50, 100]);
+    } else if (type === 'success') {
+      navigator.vibrate([50, 30, 50]);
+    } else {
+      navigator.vibrate(50);
+    }
+  }
+  
+  // Hide toast after duration
+  toastTimeout = setTimeout(() => {
+    hideToast();
+  }, duration);
+}
+
+function hideToast() {
+  const toast = document.getElementById('toastNotification');
+  if (toast) {
+    toast.classList.add('hide');
+    toast.classList.remove('show');
+  }
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+    toastTimeout = null;
+  }
 }
 
 // Optymalizowane fetch z cache i error handling
@@ -1325,7 +1446,7 @@ function startHold(event) {
     return;
   }
   
-  console.log('Hold started, system active:', isSystemActive); // Debug
+  console.log('Hold started, system active:', isSystemActive);
   
   isHolding = true;
   holdProgress = 0;
@@ -1337,9 +1458,19 @@ function startHold(event) {
   const holdProgressDiv = document.getElementById('holdProgress');
   const progressBar = document.getElementById('progressBar');
   
+  // Zachowaj oryginalny tekst przycisku
+  const originalText = triggerText.textContent;
+  
   holdProgressDiv.style.display = 'block';
   progressBar.style.width = '0%';
   progressBar.style.background = '#4ade80';
+  
+  // Show initial toast
+  if (isSystemActive) {
+    showToast('⏱️ Przytrzymaj aby zresetować timer', 'info');
+  } else {
+    showToast('🚀 Przytrzymaj aby aktywować system', 'info');
+  }
   
   holdInterval = setInterval(() => {
     if (!isHolding) {
@@ -1356,18 +1487,15 @@ function startHold(event) {
         holdPhase = 'reset';
         holdProgress = (holdDuration / 2000) * 100;
         progressBar.style.width = holdProgress + '%';
-        progressBar.style.background = '#4ade80'; // Zielony
+        progressBar.style.background = '#4ade80';
         
         if (holdDuration === 1000) {
-          triggerText.textContent = '🔄 Hold 1s more to Reset Timer';
-          triggerBtn.style.background = 'linear-gradient(135deg, #059669, #047857)';
+          showToast('🔄 Jeszcze 1s aby zresetować timer', 'success');
         }
         
         if (holdDuration >= 2000) {
-          // Wykonaj reset timera
-          triggerText.textContent = '⏱️ Timer Reset! Hold 3s more to Force Stop';
-          triggerBtn.style.background = 'linear-gradient(135deg, #d97706, #b45309)';
-          progressBar.style.background = '#fbbf24'; // Żółty
+          showToast('⏱️ Timer zresetowany! Przytrzymaj 3s aby wyłączyć', 'warning');
+          progressBar.style.background = '#fbbf24';
           
           // Wyślij reset timera
           fetch('/trigger').then(() => {
@@ -1381,17 +1509,16 @@ function startHold(event) {
         // Faza 2: Force shutdown warning (2-5s)
         holdPhase = 'warning';
         const warningProgress = ((holdDuration - 2000) / 3000) * 100;
-        holdProgress = 100 + warningProgress; // Kontynuuj od 100%
+        holdProgress = 100 + warningProgress;
         progressBar.style.width = Math.min(100, warningProgress) + '%';
-        progressBar.style.background = '#f87171'; // Czerwony
+        progressBar.style.background = '#f87171';
         
         if (holdDuration === 3000) {
-          triggerText.textContent = '⏹️ Hold 2s more to Force Stop';
-          triggerBtn.style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
+          showToast('⏹️ Jeszcze 2s aby wymusić wyłączenie', 'danger');
         }
         
         if (holdDuration >= 5000) {
-          // Wykonaj force shutdown
+          showToast('🛑 Wymuszone wyłączenie aktywowane!', 'danger');
           holdPhase = 'shutdown';
           endHold();
           forceShutdown();
@@ -1406,11 +1533,11 @@ function startHold(event) {
       progressBar.style.background = '#4ade80';
       
       if (holdDuration === 1000) {
-        triggerText.textContent = '🚀 Hold 2s more to Activate';
-        triggerBtn.style.background = 'linear-gradient(135deg, #059669, #047857)';
+        showToast('🚀 Jeszcze 2s aby aktywować', 'success');
       }
       
       if (holdDuration >= 3000) {
+        showToast('✅ System aktywowany!', 'success');
         endHold();
         triggerRelay();
         return;
@@ -1418,14 +1545,8 @@ function startHold(event) {
     }
   }, 100);
   
-  // Ustaw początkowy tekst
-  if (isSystemActive) {
-    triggerText.textContent = '⏱️ Hold to Reset Timer...';
-    triggerBtn.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
-  } else {
-    triggerText.textContent = '⏱️ Hold to Activate...';
-    triggerBtn.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
-  }
+  // Ustaw styl przycisku bez zmiany tekstu
+  triggerBtn.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
 }
 
 function endHold(event) {
@@ -1437,9 +1558,12 @@ function endHold(event) {
     return;
   }
   
-  console.log('Hold ended, duration:', holdDuration, 'phase:', holdPhase); // Debug
+  console.log('Hold ended, duration:', holdDuration, 'phase:', holdPhase);
   
   isHolding = false;
+  
+  // Toast pozostaje widoczny przez 2 sekundy po puszczeniu przycisku
+  // Nie wywołujemy hideToast() - toast zniknie automatycznie po czasie
   
   if (holdInterval) {
     clearInterval(holdInterval);
@@ -1449,8 +1573,8 @@ function endHold(event) {
   // Logika dla krótkiego kliknięcia
   if (holdDuration < 1000) {
     if (isSystemActive) {
-      // Krótkie kliknięcie gdy system aktywny - reset timera
       console.log('Short click - resetting timer');
+      showToast('⏱️ Timer zresetowany', 'success');
       setTimeout(() => {
         fetch('/trigger').then(() => {
           console.log('Quick timer reset sent');
@@ -1460,7 +1584,6 @@ function endHold(event) {
         }).catch(e => console.warn('Quick reset error:', e));
       }, 50);
     }
-    // Gdy system nieaktywny - krótkie kliknięcie nic nie robi
   }
   
   resetTriggerButton();
