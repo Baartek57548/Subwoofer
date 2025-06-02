@@ -61,3 +61,5 @@ SubwooferController/
 - Nazwa sieci: "Subwoofer"
 - Hasło: "Subwoofer321"
 - IP: 192.168.4.1
+
+https://v0.dev/chat/plik1-do-pliku2-UXZPKH8bm6a
