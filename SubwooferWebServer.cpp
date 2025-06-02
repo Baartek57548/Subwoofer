@@ -347,9 +347,184 @@ void SubwooferWebServer::handleRoot() {
         background: rgba(255,255,255,0.1) !important;
       }
     }
+
+    /* Theme Toggle Switch */
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(42, 42, 42, 0.9);
+      padding: 8px 12px;
+      border-radius: 20px;
+      border: 1px solid #444;
+      backdrop-filter: blur(10px);
+    }
+
+    .theme-toggle-label {
+      font-size: 0.8rem;
+      color: #ccc;
+      user-select: none;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #333;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #666;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #00d4ff;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(26px);
+      background-color: white;
+    }
+
+    /* Light theme styles */
+    body.light-theme {
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    body.light-theme .container {
+      background: #fff;
+    }
+
+    body.light-theme .header {
+      background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+      color: #1e40af;
+    }
+
+    body.light-theme .header h1 {
+      color: #1e40af;
+      text-shadow: 0 2px 10px rgba(30, 64, 175, 0.3);
+    }
+
+    body.light-theme .header p {
+      color: #6b7280;
+    }
+
+    body.light-theme .status-card {
+      background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+      border: 1px solid #d1d5db;
+      color: #374151;
+    }
+
+    body.light-theme .section {
+      background: linear-gradient(135deg, #ffffff, #f9fafb);
+      border: 1px solid #d1d5db;
+    }
+
+    body.light-theme .section-header {
+      background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+      border-bottom: 1px solid #d1d5db;
+    }
+
+    body.light-theme .section-title {
+      color: #1e40af;
+    }
+
+    body.light-theme .toggle-icon {
+      color: #6b7280;
+    }
+
+    body.light-theme .console-logs {
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      color: #374151;
+    }
+
+    body.light-theme .log-entry {
+      color: #374151;
+    }
+
+    body.light-theme .log-entry:hover {
+      background: #f3f4f6;
+    }
+
+    body.light-theme .log-time {
+      color: #9ca3af;
+    }
+
+    body.light-theme .log-message {
+      color: #4b5563;
+    }
+
+    body.light-theme .form-group input {
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      color: #374151;
+    }
+
+    body.light-theme .form-group input:focus {
+      border-color: #1e40af;
+      box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
+    }
+
+    body.light-theme .form-group label {
+      color: #4b5563;
+    }
+
+    body.light-theme .footer {
+      color: #9ca3af;
+      border-top: 1px solid #d1d5db;
+    }
+
+    body.light-theme .theme-toggle {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #d1d5db;
+    }
+
+    body.light-theme .theme-toggle-label {
+      color: #4b5563;
+    }
   </style>
 </head>
 <body>
+  <div class='theme-toggle'>
+    <span class='theme-toggle-label'>🌙</span>
+    <label class='switch'>
+      <input type='checkbox' id='themeToggle'>
+      <span class='slider'></span>
+    </label>
+    <span class='theme-toggle-label'>☀️</span>
+  </div>
   <div class='container'>
     <div class='header'>
       <h1>🎵 Subwoofer Controller</h1>
@@ -384,7 +559,7 @@ void SubwooferWebServer::handleRoot() {
       </div>
     </div>
 
-    <div class='section collapsed'>
+    <div class='section'>
       <div class='section-header' onclick='toggleSection(this)'>
         <div class='section-title'>
           📟 Console Logs
@@ -393,16 +568,12 @@ void SubwooferWebServer::handleRoot() {
       </div>
       <div class='section-content'>
         <div class='console-logs' id='consoleLogs'>
-          <div class='log-entry'>
-            <span class='log-time'>--:--</span>
-            <span class='log-operation value-info'>LOADING</span>
-            <span class='log-message'>Ładowanie logów...</span>
-          </div>
+          <!-- Logi będą załadowane automatycznie -->
         </div>
       </div>
     </div>
 
-    <div class='section'>
+    <div class='section collapsed'>
       <div class='section-header' onclick='toggleSection(this)'>
         <div class='section-title'>
           ⚙️ Configuration
@@ -446,21 +617,23 @@ void SubwooferWebServer::handleRoot() {
             </div>
           </div>
         </form>
+        <div style='margin-top: 20px; display: grid; grid-template-columns: 1fr 2fr; gap: 10px;'>
+          <button class='btn btn-warning' type='button' onclick='factoryReset()' style='padding: 16px; font-size: 0.9rem;'>🏭 Fabric Settings</button>
+          <button class='btn btn-success' type='button' onclick='saveConfig()' style='padding: 16px; font-size: 1rem;'>💾 Save Configuration</button>
+        </div>
       </div>
     </div>
 
     <!-- Przyciski poniżej kontenera Configuration -->
     <div class='btn-grid'>
-      <button class='btn btn-success btn-full' type='button' onclick='saveConfig()'>💾 Save Configuration</button>
+      <button class='btn btn-danger' type='button' onclick='restart()'>🔄 Restart</button>
+      <button class='btn btn-primary' type='button' onclick="location.href='/help'">❓ Help</button>
       <button class='btn btn-primary' type='button' id='triggerBtn'>
         <span id='triggerText'>🚀 Hold to Start</span>
         <div id='holdProgress' style='display: none; width: 100%; height: 3px; background: #333; border-radius: 2px; margin-top: 4px;'>
           <div id='progressBar' style='height: 100%; background: #f87171; border-radius: 2px; width: 0%; transition: width 0.1s;'></div>
         </div>
       </button>
-      <button class='btn btn-primary' type='button' onclick="location.href='/help'">❓ Help</button>
-      <button class='btn btn-warning' type='button' onclick='factoryReset()'>🔧 Reset to Factory</button>
-      <button class='btn btn-danger' type='button' onclick='restart()'>🔄 Restart</button>
     </div>
 
     <div class='footer'>
@@ -842,13 +1015,14 @@ function addLocalLog(operation, status, message) {
 // Inteligentne zarządzanie interwałami
 function startUpdates() {
   // Krytyczne dane - często
-  updateIntervals.fast = setInterval(updateReadings, 400); // 400ms zamiast 500ms
+  updateIntervals.fast = setInterval(updateReadings, 400);
   
   // Temperatura - rzadziej
   updateIntervals.temp = setInterval(updateTemperature, 3000);
   
   // Logi - tylko gdy widoczne
   if (isLogsVisible) {
+    updateLogs(); // Załaduj od razu
     startLogsUpdates();
   }
 }
@@ -1094,19 +1268,50 @@ function setupTriggerButton() {
   console.log('Trigger button event listeners set up successfully');
 }
 
-// GŁÓWNA inicjalizacja
+// Theme toggle functionality
+function initThemeToggle() {
+  const themeToggle = document.getElementById('themeToggle');
+  const body = document.body;
+  
+  // Load saved theme
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    body.classList.add('light-theme');
+    themeToggle.checked = true;
+  }
+  
+  themeToggle.addEventListener('change', function() {
+    if (this.checked) {
+      body.classList.add('light-theme');
+      localStorage.setItem('theme', 'light');
+    } else {
+      body.classList.remove('light-theme');
+      localStorage.setItem('theme', 'dark');
+    }
+  });
+}
+
+// Initialize theme toggle when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOM Content Loaded - setting up components');
+  
+  // Setup theme toggle
+  initThemeToggle();
   
   // Setup trigger button
   setupTriggerButton();
   
-  // Sprawdź czy logi są widoczne na starcie
+  // Sprawdź czy logi są widoczne na starcie i załaduj je od razu
   const logsSection = document.querySelector('#consoleLogs');
   if (logsSection) {
     const section = logsSection.closest('.section');
     isLogsVisible = !section.classList.contains('collapsed');
     console.log('Initial logs visibility:', isLogsVisible);
+    
+    // Załaduj logi od razu jeśli są widoczne
+    if (isLogsVisible) {
+      updateLogs();
+    }
   }
   
   console.log('All components set up successfully');
@@ -1428,6 +1633,7 @@ void SubwooferWebServer::handleHelp() {
         <li><strong>STARTUP/SHUTDOWN</strong> – System power sequences</li>
         <li><strong>SAVE</strong> – Configuration changes saved</li>
         <li><strong>TRIGGER RELAYS</strong> – Manual relay activation</li>
+        
         <li><strong>AUDIO</strong> – Audio signal detection events</li>
         <li><strong>TEMPERATURE</strong> – Temperature warnings and cooling</li>
         <li><strong>BATTERY</strong> – Low voltage warnings</li>
