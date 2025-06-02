@@ -164,23 +164,37 @@ void SubwooferWebServer::handleRoot() {
       padding: 15px; border-bottom: 1px solid #444;
       display: flex; justify-content: space-between; align-items: center;
       cursor: pointer; user-select: none;
+      transition: background 0.2s;
+    }
+    .section-header:hover {
+      background: linear-gradient(135deg, #333, #3a3a3a);
+    }
+    .section-header:active {
+      transform: scale(0.99);
     }
     .section-title { 
       font-size: 1.1rem; font-weight: 600; 
       color: #00d4ff; display: flex; align-items: center; gap: 8px;
     }
     .toggle-icon { 
-      font-size: 1.2rem; transition: transform 0.3s;
+      font-size: 1.2rem; transition: transform 0.3s ease;
       color: #888;
     }
-    .section.collapsed .toggle-icon { transform: rotate(-90deg); }
+    .section.collapsed .toggle-icon { 
+      transform: rotate(-90deg); 
+    }
     
     .section-content {
-      padding: 15px; transition: max-height 0.3s ease;
+      max-height: 1000px;
+      padding: 15px; 
+      transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
       overflow: hidden;
+      opacity: 1;
     }
     .section.collapsed .section-content { 
-      max-height: 0; padding: 0 15px; 
+      max-height: 0; 
+      padding: 0 15px; 
+      opacity: 0;
     }
     
     .console-logs {
@@ -194,6 +208,7 @@ void SubwooferWebServer::handleRoot() {
       font-size: 0.8rem; padding: 4px 6px; 
       border-radius: 4px; align-items: center;
       transition: background-color 0.2s;
+      animation: fadeIn 0.3s ease-in;
     }
     .log-entry:hover { background: #1a1a1a; }
     .log-time { color: #666; min-width: 60px; font-size: 0.75rem; }
@@ -235,8 +250,15 @@ void SubwooferWebServer::handleRoot() {
       transition: all 0.2s; text-decoration: none;
       display: flex; align-items: center; justify-content: center; gap: 6px;
       min-height: 48px;
+      position: relative;
+      overflow: hidden;
     }
-    .btn:active { transform: scale(0.96); }
+    .btn:active { 
+      transform: scale(0.96); 
+    }
+    .btn:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
     
     .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
     .btn-primary:hover { background: linear-gradient(135deg, #1d4ed8, #1e40af); }
@@ -255,6 +277,29 @@ void SubwooferWebServer::handleRoot() {
       font-size: 1rem;
       padding: 16px;
       min-height: 56px;
+    }
+    
+    /* Ripple effect for buttons */
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      transition: width 0.6s, height 0.6s;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+    }
+    .btn:active::before {
+      width: 300px;
+      height: 300px;
+    }
+    .btn > * {
+      position: relative;
+      z-index: 1;
     }
     
     .footer {
@@ -293,15 +338,14 @@ void SubwooferWebServer::handleRoot() {
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .log-entry {
-      display: flex; gap: 8px; margin: 2px 0; 
-      font-size: 0.8rem; padding: 4px 6px; 
-      border-radius: 4px; align-items: center;
-      transition: background-color 0.2s;
-    }
-
-    .btn-grid .btn-full + .btn-full {
-      margin-top: 10px;
+    /* Touch feedback for mobile */
+    @media (hover: none) and (pointer: coarse) {
+      .btn:active {
+        background: rgba(255,255,255,0.1) !important;
+      }
+      .section-header:active {
+        background: rgba(255,255,255,0.1) !important;
+      }
     }
   </style>
 </head>
@@ -341,7 +385,7 @@ void SubwooferWebServer::handleRoot() {
     </div>
 
     <div class='section collapsed'>
-      <div class='section-header' data-toggle='section'>
+      <div class='section-header' onclick='toggleSection(this)'>
         <div class='section-title'>
           📟 Console Logs
         </div>
@@ -358,8 +402,8 @@ void SubwooferWebServer::handleRoot() {
       </div>
     </div>
 
-    <div class='section collapsed'>
-      <div class='section-header' data-toggle='section'>
+    <div class='section'>
+      <div class='section-header' onclick='toggleSection(this)'>
         <div class='section-title'>
           ⚙️ Configuration
         </div>
@@ -401,34 +445,22 @@ void SubwooferWebServer::handleRoot() {
               <input name='delayrelay' type='number' value=')rawliteral" + String(config->getDelayRelaySwitch()) + R"rawliteral(' min='100' max='10000'>
             </div>
           </div>
-          
-          <div class='btn-grid'>
-            <button class='btn btn-success btn-full' type='button' onclick='saveConfig()'>💾 Save Configuration</button>
-            <button class='btn btn-warning btn-full' type='button' onclick='factoryReset()'>🔧 Reset to Factory Defaults</button>
-          </div>
         </form>
       </div>
     </div>
 
-    <div class='section'>
-      <div class='section-header' data-toggle='section'>
-        <div class='section-title'>
-          🎛️ Controls
+    <!-- Przyciski poniżej kontenera Configuration -->
+    <div class='btn-grid'>
+      <button class='btn btn-success btn-full' type='button' onclick='saveConfig()'>💾 Save Configuration</button>
+      <button class='btn btn-primary' type='button' id='triggerBtn'>
+        <span id='triggerText'>🚀 Hold to Start</span>
+        <div id='holdProgress' style='display: none; width: 100%; height: 3px; background: #333; border-radius: 2px; margin-top: 4px;'>
+          <div id='progressBar' style='height: 100%; background: #f87171; border-radius: 2px; width: 0%; transition: width 0.1s;'></div>
         </div>
-        <div class='toggle-icon'>▼</div>
-      </div>
-      <div class='section-content'>
-        <div class='btn-grid'>
-          <button class='btn btn-primary' type='button' id='triggerBtn'>
-            <span id='triggerText'>🚀 Trigger</span>
-            <div id='holdProgress' style='display: none; width: 100%; height: 3px; background: #333; border-radius: 2px; margin-top: 4px;'>
-              <div id='progressBar' style='height: 100%; background: #f87171; border-radius: 2px; width: 0%; transition: width 0.1s;'></div>
-            </div>
-          </button>
-          <button class='btn btn-primary' type='button' onclick="location.href='/help'">❓ Help</button>
-          <button class='btn btn-danger' type='button' onclick='restart()'>🔄 Restart</button>
-        </div>
-      </div>
+      </button>
+      <button class='btn btn-primary' type='button' onclick="location.href='/help'">❓ Help</button>
+      <button class='btn btn-warning' type='button' onclick='factoryReset()'>🔧 Reset to Factory</button>
+      <button class='btn btn-danger' type='button' onclick='restart()'>🔄 Restart</button>
     </div>
 
     <div class='footer'>
@@ -521,25 +553,16 @@ async function optimizedFetch(url, cacheKey, maxAge = 1000) {
 }
 
 function toggleSection(header) {
-  console.log('toggleSection called', header); // Debug
-  
-  if (!header) {
-    console.warn('toggleSection: header is null');
-    return;
-  }
-  
-  const section = header.closest('.section');
+  const section = header.parentElement;
   if (!section) {
     console.warn('toggleSection: section not found');
     return;
   }
   
-  console.log('Section before toggle:', section.classList.contains('collapsed')); // Debug
-  
   const wasCollapsed = section.classList.contains('collapsed');
   section.classList.toggle('collapsed');
   
-  console.log('Section after toggle:', section.classList.contains('collapsed')); // Debug
+  console.log('Section toggled:', !wasCollapsed ? 'collapsed' : 'expanded');
   
   // Lazy loading logów
   const logsContainer = section.querySelector('#consoleLogs');
@@ -560,34 +583,6 @@ function toggleSection(header) {
       console.log('Logs section expanded, started updates');
     }
   }
-}
-
-// Setup section toggles
-function setupSectionToggles() {
-  const sectionHeaders = document.querySelectorAll('[data-toggle="section"]');
-  console.log('Found section headers:', sectionHeaders.length);
-  
-  sectionHeaders.forEach((header, index) => {
-    console.log(`Setting up header ${index}:`, header);
-    
-    // Usuń stary listener jeśli istnieje
-    header.removeEventListener('click', handleSectionToggle);
-    
-    // Dodaj nowy listener
-    header.addEventListener('click', handleSectionToggle);
-    
-    // Dodaj style dla lepszej interakcji
-    header.style.cursor = 'pointer';
-    header.style.userSelect = 'none';
-  });
-}
-
-function handleSectionToggle(event) {
-  console.log('Section header clicked:', event.currentTarget);
-  event.preventDefault();
-  event.stopPropagation();
-  
-  toggleSection(event.currentTarget);
 }
 
 // Zoptymalizowane aktualizacje z inteligentnym interwałem
@@ -617,19 +612,19 @@ async function updateReadings() {
   
   if (wasSystemActive !== isSystemActive && !isHolding) {
     updates.push(() => {
-    if (isSystemActive) {
-      triggerText.textContent = '🔄 Tap to Reset / Hold 5s to Stop';
-    } else {
-      triggerText.textContent = '🚀 Hold 3s to Start';
-    }
-  });
-}
+      if (isSystemActive) {
+        triggerText.textContent = '🔄 Tap to Reset / Hold 5s to Stop';
+      } else {
+        triggerText.textContent = '🚀 Hold 3s to Start';
+      }
+    });
+  }
   
   if (data.relays !== fastDataCache.relays) {
     updates.push(() => {
       if (data.relays) {
-        relaysBadge.textContent = 'ACTIVE';
-        relaysBadge.className = 'status-value value-success';
+        relaysBadge.textContent = data.relayStatus || 'ACTIVE';
+        relaysBadge.className = 'status-value ' + (data.relayStatusClass || 'value-success');
         timerCard.style.display = 'block';
       } else {
         relaysBadge.textContent = 'OFF';
@@ -884,7 +879,6 @@ const debouncedForceShutdown = debounce(() => {
 }, 100);
 
 // Zmienione zmienne dla nowej logiki
-let holdDuration = 0;
 let holdPhase = 'none'; // 'none', 'reset', 'warning', 'shutdown'
 
 function startHold(event) {
@@ -1057,7 +1051,7 @@ function resetTriggerButton() {
   holdPhase = 'none';
 }
 
-// Event listeners - NAPRAWIONE!
+// Event listeners
 function setupTriggerButton() {
   const triggerBtn = document.getElementById('triggerBtn');
   if (!triggerBtn) {
@@ -1072,7 +1066,6 @@ function setupTriggerButton() {
   triggerBtn.removeEventListener('touchstart', startHold);
   triggerBtn.removeEventListener('touchend', endHold);
   triggerBtn.removeEventListener('touchcancel', endHold);
-  triggerBtn.removeEventListener('contextmenu', function(e) { e.preventDefault(); });
   
   // Dodaj nowe event listenery
   triggerBtn.addEventListener('mousedown', startHold);
@@ -1101,11 +1094,9 @@ function setupTriggerButton() {
   console.log('Trigger button event listeners set up successfully');
 }
 
+// GŁÓWNA inicjalizacja
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOM Content Loaded - setting up components');
-  
-  // Setup section toggles
-  setupSectionToggles();
   
   // Setup trigger button
   setupTriggerButton();
@@ -1144,6 +1135,7 @@ document.addEventListener('visibilitychange', function() {
     stopUpdates();
     if (localCountdownInterval) {
       clearInterval(localCountdownInterval);
+      localCountdownInterval = null;
     }
   } else {
     startUpdates();
@@ -1237,6 +1229,7 @@ function saveConfig() {
   }
 }
 </script>
+</body></html>
 )rawliteral";
 
   server.send(200, "text/html", html);
@@ -1311,10 +1304,12 @@ void SubwooferWebServer::handleFastData() {
   float adc = analogRead(batteryPin);  // Używamy zapisanego pinu baterii
   float napiecie = ((adc) / 4095.0) * 3.3 * (47 + 12) / 12;
   
-  DynamicJsonDocument doc(300);
+  DynamicJsonDocument doc(400);
   doc["batt"] = String(napiecie, 2);
   doc["audio"] = String(sensorManager->getFilteredAudio(), 3);
   doc["relays"] = relayController->isActive();
+  doc["relayStatus"] = relayController->getStatusText();
+  doc["relayStatusClass"] = relayController->getStatusClass();
   
   // Dodaj informację o czasie pozostałym do wyłączenia
   if (relayController->isActive()) {
@@ -1445,8 +1440,9 @@ void SubwooferWebServer::handleHelp() {
       <ul>
         <li><strong>Trigger (Tap)</strong> – Manually activate relays and reset timer</li>
         <li><strong>Trigger (Hold 3s)</strong> – Activate relays when system is OFF</li>
-        <li><strong>Trigger (Hold 4s)</strong> – Force immediate shutdown when system is ON</li>
-        <li><strong>Reset</strong> – Restore factory default settings</li>
+        <li><strong>Trigger (Hold 5s)</strong> – Force immediate shutdown when system is ON</li>
+        <li><strong>Save Configuration</strong> – Save all configuration changes</li>
+        <li><strong>Reset to Factory</strong> – Restore factory default settings</li>
         <li><strong>Restart</strong> – Reboot the ESP32 device</li>
       </ul>
     </div>
@@ -1457,8 +1453,9 @@ void SubwooferWebServer::handleHelp() {
         <li>Collapsible sections to save screen space</li>
         <li>Touch-optimized buttons and controls</li>
         <li>Responsive grid layout for all screen sizes</li>
-        <li>Real-time status updates every 0.5 seconds</li>
+        <li>Real-time status updates every 0.4 seconds</li>
         <li>Visual countdown timer with color coding</li>
+        <li>Ripple effects on button presses</li>
       </ul>
     </div>
 
@@ -1497,7 +1494,7 @@ void SubwooferWebServer::handleRestart() {
     }
     h2 { color: #00d4ff; margin-bottom: 15px; }
     .spinner {
-      width: 40px; height: 40px; margin: 20 auto;
+      width: 40px; height: 40px; margin: 20px auto;
       border: 4px solid #333; border-top: 4px solid #00d4ff;
       border-radius: 50%; animation: spin 1s linear infinite;
     }
