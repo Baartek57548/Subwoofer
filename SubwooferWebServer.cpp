@@ -86,7 +86,24 @@ void SubwooferWebServer::handleRoot() {
       margin: 0 auto; min-height: 100vh;
     }
     
+    /* Theme Toggle Switch */
+    .theme-toggle {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(42, 42, 42, 0.9);
+      padding: 6px 10px;
+      border-radius: 20px;
+      border: 1px solid #444;
+      backdrop-filter: blur(10px);
+    }
+
     .header {
+      position: relative;
       text-align: center; padding: 15px 0; 
       background: linear-gradient(135deg, #1a1a2e, #16213e);
       border-radius: 12px; margin-bottom: 15px;
@@ -317,6 +334,33 @@ void SubwooferWebServer::handleRoot() {
       .console-logs { height: 200px; }
       .section-header { padding: 12px; }
       .section-content { padding: 12px; }
+      
+      .theme-toggle {
+        top: 10px;
+        right: 10px;
+        padding: 4px 8px;
+        gap: 6px;
+      }
+      
+      .theme-toggle-label {
+        font-size: 0.7rem;
+      }
+      
+      .switch {
+        width: 40px;
+        height: 20px;
+      }
+      
+      .slider:before {
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+      }
+      
+      input:checked + .slider:before {
+        transform: translateX(20px);
+      }
     }
     
     @media (max-width: 480px) {
@@ -418,101 +462,264 @@ void SubwooferWebServer::handleRoot() {
 
     /* Light theme styles */
     body.light-theme {
-      background: #f5f5f5;
-      color: #333;
+  background: #f8fafc;
+  color: #334155;
+}
+
+body.light-theme .container {
+  background: transparent;
+}
+
+body.light-theme .header {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  color: #475569;
+}
+
+body.light-theme .header h1 {
+  color: #0f172a;
+  text-shadow: 0 2px 10px rgba(15, 23, 42, 0.1);
+}
+
+body.light-theme .header p {
+  color: #64748b;
+}
+
+body.light-theme .status-card {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+body.light-theme .section {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border: 1px solid #e2e8f0;
+}
+
+body.light-theme .section-header {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+body.light-theme .section-title {
+  color: #0f172a;
+}
+
+body.light-theme .toggle-icon {
+  color: #64748b;
+}
+
+body.light-theme .console-logs {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+body.light-theme .log-entry {
+  color: #475569;
+}
+
+body.light-theme .log-entry:hover {
+  background: #f1f5f9;
+}
+
+body.light-theme .log-time {
+  color: #94a3b8;
+}
+
+body.light-theme .log-message {
+  color: #64748b;
+}
+
+body.light-theme .form-group input {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+body.light-theme .form-group input:focus {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1);
+}
+
+body.light-theme .form-group label {
+  color: #64748b;
+}
+
+body.light-theme .footer {
+  color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+}
+
+body.light-theme .theme-toggle {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e2e8f0;
+}
+
+body.light-theme .theme-toggle-label {
+  color: #64748b;
+}
+
+body.light-theme .timer-container {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border: 1px solid #e2e8f0;
+}
+
+body.light-theme .timer-container.warning {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 1px solid #d97706;
+}
+
+body.light-theme .timer-container.critical {
+  background: linear-gradient(135deg, #fef2f2, #fecaca);
+  border: 1px solid #dc2626;
+}
+
+body.light-theme .timer-line {
+  background: #e2e8f0;
+}
+
+body.light-theme .timer-progress-container {
+  background: #f1f5f9;
+}
+
+/* Light theme value badges */
+body.light-theme .value-success { 
+  background: #f0fdf4; 
+  color: #166534; 
+  border: 1px solid #bbf7d0;
+}
+body.light-theme .value-warning { 
+  background: #fffbeb; 
+  color: #92400e; 
+  border: 1px solid #fde68a;
+}
+body.light-theme .value-error { 
+  background: #fef2f2; 
+  color: #991b1b; 
+  border: 1px solid #fecaca;
+}
+body.light-theme .value-info { 
+  background: #eff6ff; 
+  color: #1e40af; 
+  border: 1px solid #dbeafe;
+}
+body.light-theme .value-inactive { 
+  background: #f8fafc; 
+  color: #94a3b8; 
+  border: 1px solid #e2e8f0;
+}
+    /* Timer Line/Bar */
+    .timer-line {
+      width: 100%;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      margin: 15px 0;
+      transition: all 0.3s ease;
     }
 
-    body.light-theme .container {
-      background: #fff;
+    .timer-container {
+      width: 100%;
+      background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      margin: 15px 0;
+      display: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
     }
 
-    body.light-theme .header {
-      background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
-      color: #1e40af;
+    .timer-container.active {
+      display: block;
     }
 
-    body.light-theme .header h1 {
-      color: #1e40af;
-      text-shadow: 0 2px 10px rgba(30, 64, 175, 0.3);
+    .timer-container.warning {
+      background: linear-gradient(135deg, #4d3d1a, #5f4e1a);
+      border: 1px solid #fbbf24;
     }
 
-    body.light-theme .header p {
-      color: #6b7280;
+    .timer-container.critical {
+      background: linear-gradient(135deg, #4d1a1a, #5f1a1a);
+      border: 1px solid #f87171;
+      animation: pulse 2s infinite;
     }
 
-    body.light-theme .status-card {
+    .timer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .timer-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #00d4ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .timer-value {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #4ade80;
+    }
+
+    .timer-value.warning {
+      color: #fbbf24;
+    }
+
+    .timer-value.critical {
+      color: #f87171;
+    }
+
+    .timer-progress-container {
+      width: 100%;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .timer-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #4ade80, #22c55e);
+      border-radius: 4px;
+      transition: width 0.1s ease;
+    }
+
+    .timer-progress-bar.warning {
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    }
+
+    .timer-progress-bar.critical {
+      background: linear-gradient(90deg, #f87171, #ef4444);
+    }
+
+    /* Light theme timer styles */
+    body.light-theme .timer-container {
       background: linear-gradient(135deg, #f9fafb, #f3f4f6);
       border: 1px solid #d1d5db;
-      color: #374151;
     }
 
-    body.light-theme .section {
-      background: linear-gradient(135deg, #ffffff, #f9fafb);
-      border: 1px solid #d1d5db;
+    body.light-theme .timer-container.warning {
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 1px solid #f59e0b;
     }
 
-    body.light-theme .section-header {
-      background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-      border-bottom: 1px solid #d1d5db;
+    body.light-theme .timer-container.critical {
+      background: linear-gradient(135deg, #fecaca, #fca5a5);
+      border: 1px solid #ef4444;
     }
 
-    body.light-theme .section-title {
-      color: #1e40af;
+    body.light-theme .timer-line {
+      background: #d1d5db;
     }
 
-    body.light-theme .toggle-icon {
-      color: #6b7280;
-    }
-
-    body.light-theme .console-logs {
-      background: #f9fafb;
-      border: 1px solid #d1d5db;
-      color: #374151;
-    }
-
-    body.light-theme .log-entry {
-      color: #374151;
-    }
-
-    body.light-theme .log-entry:hover {
-      background: #f3f4f6;
-    }
-
-    body.light-theme .log-time {
-      color: #9ca3af;
-    }
-
-    body.light-theme .log-message {
-      color: #4b5563;
-    }
-
-    body.light-theme .form-group input {
-      background: #ffffff;
-      border: 1px solid #d1d5db;
-      color: #374151;
-    }
-
-    body.light-theme .form-group input:focus {
-      border-color: #1e40af;
-      box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
-    }
-
-    body.light-theme .form-group label {
-      color: #4b5563;
-    }
-
-    body.light-theme .footer {
-      color: #9ca3af;
-      border-top: 1px solid #d1d5db;
-    }
-
-    body.light-theme .theme-toggle {
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid #d1d5db;
-    }
-
-    body.light-theme .theme-toggle-label {
-      color: #4b5563;
+    body.light-theme .timer-progress-container {
+      background: #e5e7eb;
     }
   </style>
 </head>
@@ -552,10 +759,19 @@ void SubwooferWebServer::handleRoot() {
         <div class='status-label'>Relays</div>
         <div class='status-value' id='relays'>--</div>
       </div>
-      <div class='status-card' id='timerCard' style='display: none;'>
-        <div class='status-icon'>⏱️</div>
-        <div class='status-label'>Shutdown in</div>
-        <div class='status-value' id='timer'>--</div>
+    </div>
+
+    <!-- Timer Line/Container -->
+    <div class='timer-line' id='timerLine'></div>
+    <div class='timer-container' id='timerContainer'>
+      <div class='timer-header'>
+        <div class='timer-title'>
+          ⏱️ System Shutdown Timer
+        </div>
+        <div class='timer-value' id='timerValue'>--</div>
+      </div>
+      <div class='timer-progress-container'>
+        <div class='timer-progress-bar' id='timerProgressBar'></div>
       </div>
     </div>
 
@@ -659,7 +875,7 @@ let localCountdownInterval = null;
 let fastDataCache = {};
 let tempDataCache = {};
 let logsCache = {};
-let isLogsVisible = false;
+let isLogsVisible = true;
 let updateIntervals = {
   fast: null,
   temp: null,
@@ -777,7 +993,8 @@ async function updateReadings() {
   }
   
   const relaysBadge = document.getElementById('relays');
-  const timerCard = document.getElementById('timerCard');
+  const timerLine = document.getElementById('timerLine');
+  const timerContainer = document.getElementById('timerContainer');
   const triggerText = document.getElementById('triggerText');
   
   const wasSystemActive = isSystemActive;
@@ -798,11 +1015,13 @@ async function updateReadings() {
       if (data.relays) {
         relaysBadge.textContent = data.relayStatus || 'ACTIVE';
         relaysBadge.className = 'status-value ' + (data.relayStatusClass || 'value-success');
-        timerCard.style.display = 'block';
+        timerLine.style.display = 'none';
+        timerContainer.classList.add('active');
       } else {
         relaysBadge.textContent = 'OFF';
         relaysBadge.className = 'status-value value-warning';
-        timerCard.style.display = 'none';
+        timerLine.style.display = 'block';
+        timerContainer.classList.remove('active');
         
         if (localCountdownInterval) {
           clearInterval(localCountdownInterval);
@@ -859,8 +1078,9 @@ function startLocalCountdown() {
 
 // Zoptymalizowane wyświetlanie timera
 function updateTimerDisplay(timeRemaining) {
-  const timerCard = document.getElementById('timerCard');
-  const timerElement = document.getElementById('timer');
+  const timerContainer = document.getElementById('timerContainer');
+  const timerValue = document.getElementById('timerValue');
+  const timerProgressBar = document.getElementById('timerProgressBar');
   
   if (timeRemaining > 0) {
     const minutes = Math.floor(timeRemaining / 60);
@@ -871,34 +1091,49 @@ function updateTimerDisplay(timeRemaining) {
       `${minutes}:${displaySeconds.toFixed(1).padStart(4, '0')}` : 
       `${displaySeconds.toFixed(1)}s`;
     
+    // Oblicz procent pozostałego czasu
+    const totalTime = currentHoldTime; // Użyj aktualnego czasu z konfiguracji
+    const progressPercent = (timeRemaining / totalTime) * 100;
+    
     // Unikaj niepotrzebnych DOM updates
-    if (timerElement.textContent !== timeText) {
-      timerElement.textContent = timeText;
+    if (timerValue.textContent !== timeText) {
+      timerValue.textContent = timeText;
     }
+    
+    // Zaktualizuj pasek postępu
+    timerProgressBar.style.width = Math.max(0, progressPercent) + '%';
     
     // Optymalizacja klas CSS
-    let cardClass = 'status-card timer-card';
-    let valueClass = 'status-value value-success';
+    let containerClass = 'timer-container active';
+    let valueClass = 'timer-value';
+    let barClass = 'timer-progress-bar';
     
     if (timeRemaining <= 10) {
-      cardClass = 'status-card timer-card critical';
-      valueClass = 'status-value value-error';
+      containerClass = 'timer-container active critical';
+      valueClass = 'timer-value critical';
+      barClass = 'timer-progress-bar critical';
     } else if (timeRemaining <= 30) {
-      cardClass = 'status-card timer-card warning';
-      valueClass = 'status-value value-warning';
+      containerClass = 'timer-container active warning';
+      valueClass = 'timer-value warning';
+      barClass = 'timer-progress-bar warning';
     }
     
-    if (timerCard.className !== cardClass) {
-      timerCard.className = cardClass;
+    if (timerContainer.className !== containerClass) {
+      timerContainer.className = containerClass;
     }
-    if (timerElement.className !== valueClass) {
-      timerElement.className = valueClass;
+    if (timerValue.className !== valueClass) {
+      timerValue.className = valueClass;
+    }
+    if (timerProgressBar.className !== barClass) {
+      timerProgressBar.className = barClass;
     }
   } else {
-    if (timerElement.textContent !== 'SHUTTING DOWN') {
-      timerElement.textContent = 'SHUTTING DOWN';
-      timerElement.className = 'status-value value-error';
-      timerCard.className = 'status-card timer-card critical';
+    if (timerValue.textContent !== 'SHUTTING DOWN') {
+      timerValue.textContent = 'SHUTTING DOWN';
+      timerValue.className = 'timer-value critical';
+      timerContainer.className = 'timer-container active critical';
+      timerProgressBar.style.width = '0%';
+      timerProgressBar.className = 'timer-progress-bar critical';
     }
   }
 }
@@ -1289,6 +1524,13 @@ function initThemeToggle() {
       localStorage.setItem('theme', 'dark');
     }
   });
+
+  // Załaduj dane od razu po inicjalizacji
+  setTimeout(() => {
+    updateReadings();
+    updateTemperature();
+    if (isLogsVisible) updateLogs();
+  }, 100);
 }
 
 // Initialize theme toggle when DOM is loaded
@@ -1684,7 +1926,7 @@ void SubwooferWebServer::handleRestart() {
   server.send(200, "text/html", R"rawliteral(
 <!DOCTYPE html><html><head>
   <meta charset='UTF-8'>
-  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <meta name='viewport' content='width-device-width, initial-scale=1.0'>
   <meta http-equiv='refresh' content='5;url=/' />
   <style>
     body { 
