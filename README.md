@@ -1,4 +1,4 @@
-# ESP32 Subwoofer Controller
+# ESP32c3 supermini Subwoofer Controller
 
 Zrefaktoryzowany kod sterownika subwoofera dla ESP32C3 z podziałem na klasy.
 
@@ -45,15 +45,6 @@ SubwooferController/
 - **Konfiguracja UART** - komendy tekstowe do konfiguracji
 - **System logowania** - śledzenie wszystkich operacji systemu
 
-## Korzyści z refaktoryzacji
-
-✅ **Modularność** - każda klasa ma jedną odpowiedzialność  
-✅ **Łatwość utrzymania** - zmiany w jednej klasie nie wpływają na inne  
-✅ **Testowalność** - każdy komponent można testować niezależnie  
-✅ **Czytelność** - kod jest lepiej zorganizowany i zrozumiały  
-✅ **Rozszerzalność** - łatwo dodawać nowe funkcje  
-✅ **Debugowanie** - łatwiejsze znajdowanie i naprawianie błędów  
-
 ## Konfiguracja pinów
 
 - GPIO0: Wentylator (PWM)
@@ -70,5 +61,3 @@ SubwooferController/
 - Nazwa sieci: "Subwoofer"
 - Hasło: "Subwoofer321"
 - IP: 192.168.4.1
-
-Kod zachowuje całą funkcjonalność oryginału, ale jest znacznie lepiej zorganizowany i łatwiejszy w utrzymaniu.
