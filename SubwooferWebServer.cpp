@@ -1,16 +1,20 @@
 #include "SubwooferWebServer.h"
 #include <ArduinoJson.h>
+#include <DNSServer.h>
 
 // Deklaracje zewnętrznych zmiennych
 extern unsigned long lastAudioDetected;
 extern DallasTemperature sensors;
 
-SubwooferWebServer::SubwooferWebServer() : 
-  server(80),
-  active(true),
-  startTime(0),
-  connectedClients(0),
-  batteryPin(0) {
+// Serwer DNS (globalnie w pliku)
+DNSServer dnsServer;
+
+SubwooferWebServer::SubwooferWebServer()
+  : server(80),
+    active(true),
+    startTime(0),
+    connectedClients(0),
+    batteryPin(0) {
 }
 
 void SubwooferWebServer::init(ConfigManager* config, ConsoleLogger* logger, RelayController* relayController, SensorManager* sensorManager, int batteryPin) {
@@ -19,13 +23,16 @@ void SubwooferWebServer::init(ConfigManager* config, ConsoleLogger* logger, Rela
   this->relayController = relayController;
   this->sensorManager = sensorManager;
   this->batteryPin = batteryPin;  // Zapisz pin baterii
-  
+
   WiFi.softAP(nazwaWifi, hasloWifi);
   startTime = millis();
-  
+
+  // Uruchomienie DNS przekierowującego wszystko na IP ESP32
+  dnsServer.start(53, "*", WiFi.softAPIP());
+
   setupRoutes();
   server.begin();
-  
+
   logger->addLog("WEB SERVER", "success", "Serwer HTTP uruchomiony");
 }
 
@@ -33,6 +40,10 @@ void SubwooferWebServer::activate() {
   WiFi.softAP(nazwaWifi, hasloWifi);
   startTime = millis();
   active = true;
+
+  // Ponowne uruchomienie DNS po aktywacji AP
+  dnsServer.start(53, "*", WiFi.softAPIP());
+
   setupRoutes();
   server.begin();
   Serial.print("Ponownie aktywowano AP. IP: ");
@@ -41,8 +52,10 @@ void SubwooferWebServer::activate() {
 
 void SubwooferWebServer::handleClient() {
   if (!active) return;
-  
+
   server.handleClient();
+  dnsServer.processNextRequest();  // Obsługa zapytań DNS
+
   connectedClients = WiFi.softAPgetStationNum();
 
   if (connectedClients == 0 && millis() - startTime > WIFI_TIMEOUT) {
@@ -53,19 +66,99 @@ void SubwooferWebServer::handleClient() {
     active = false;
   }
 }
-
+/* przed dns a dokładniej przed dodaniem przekierowan HTTP
 void SubwooferWebServer::setupRoutes() {
-  server.on("/", HTTP_GET, [this]() { handleRoot(); });
-  server.on("/set", HTTP_GET, [this]() { handleSet(); });
-  server.on("/trigger", HTTP_GET, [this]() { handleTrigger(); });
-  server.on("/force-shutdown", HTTP_GET, [this]() { handleForceShutdown(); });
-  server.on("/fastdata", HTTP_GET, [this]() { handleFastData(); });
-  server.on("/data", HTTP_GET, [this]() { handleData(); });
-  server.on("/logs", HTTP_GET, [this]() { handleLogs(); });
-  server.on("/help", HTTP_GET, [this]() { handleHelp(); });
-  server.on("/factory", HTTP_GET, [this]() { handleFactory(); });
-  server.on("/restart", HTTP_GET, [this]() { handleRestart(); });
+  server.on("/", HTTP_GET, [this]() {
+    handleRoot();
+  });
+  server.on("/set", HTTP_GET, [this]() {
+    handleSet();
+  });
+  server.on("/trigger", HTTP_GET, [this]() {
+    handleTrigger();
+  });
+  server.on("/force-shutdown", HTTP_GET, [this]() {
+    handleForceShutdown();
+  });
+  server.on("/fastdata", HTTP_GET, [this]() {
+    handleFastData();
+  });
+  server.on("/data", HTTP_GET, [this]() {
+    handleData();
+  });
+  server.on("/logs", HTTP_GET, [this]() {
+    handleLogs();
+  });
+  server.on("/help", HTTP_GET, [this]() {
+    handleHelp();
+  });
+  server.on("/factory", HTTP_GET, [this]() {
+    handleFactory();
+  });
+  server.on("/restart", HTTP_GET, [this]() {
+    handleRestart();
+  });
 }
+*/
+void SubwooferWebServer::setupRoutes() {
+  server.on("/", HTTP_GET, [this]() {
+    handleRoot();
+  });
+  server.on("/set", HTTP_GET, [this]() {
+    handleSet();
+  });
+  server.on("/trigger", HTTP_GET, [this]() {
+    handleTrigger();
+  });
+  server.on("/force-shutdown", HTTP_GET, [this]() {
+    handleForceShutdown();
+  });
+  server.on("/fastdata", HTTP_GET, [this]() {
+    handleFastData();
+  });
+  server.on("/data", HTTP_GET, [this]() {
+    handleData();
+  });
+  server.on("/logs", HTTP_GET, [this]() {
+    handleLogs();
+  });
+  server.on("/help", HTTP_GET, [this]() {
+    handleHelp();
+  });
+  server.on("/factory", HTTP_GET, [this]() {
+    handleFactory();
+  });
+  server.on("/restart", HTTP_GET, [this]() {
+    handleRestart();
+  });
+
+  // Przekierowanie dla nieznanych ścieżek
+  server.onNotFound([this]() {
+    server.sendHeader("Location", "/", true);
+    server.send(302, "text/plain", "");
+  });
+
+  server.on("/generate_204", HTTP_GET, [this]() {
+    server.sendHeader("Location", "/", true);
+    server.send(302, "text/plain", "");
+  });
+
+  server.on("/hotspot-detect.html", HTTP_GET, [this]() {
+    server.sendHeader("Location", "/", true);
+    server.send(302, "text/plain", "");
+  });
+
+  server.on("/connecttest.txt", HTTP_GET, [this]() {
+    server.sendHeader("Location", "/", true);
+    server.send(302, "text/plain", "");
+  });
+
+  server.on("/captive-portal", HTTP_GET, [this]() {
+    server.sendHeader("Location", "/", true);
+    server.send(302, "text/plain", "");
+  });
+}
+
 
 // Nowe metody dla lepszego zarządzania statusem przekaźników
 String SubwooferWebServer::getRelayStatusText() {
@@ -76,12 +169,12 @@ String SubwooferWebServer::getRelayStatusText() {
     }
     return "OFF";
   }
-  
+
   // System jest aktywny - sprawdź czy w trakcie sekwencji
   if (!relayController->isIdle()) {
     return "STARTING";
   }
-  
+
   // System jest aktywny i w trybie idle (normalnej pracy)
   return "ACTIVE";
 }
@@ -89,16 +182,16 @@ String SubwooferWebServer::getRelayStatusText() {
 String SubwooferWebServer::getRelayStatusClass() {
   if (!relayController->isActive()) {
     if (!relayController->isIdle()) {
-      return "value-warning"; // Żółty podczas wyłączania
+      return "value-warning";  // Żółty podczas wyłączania
     }
-    return "value-inactive"; // Szary gdy wyłączony
+    return "value-inactive";  // Szary gdy wyłączony
   }
-  
+
   if (!relayController->isIdle()) {
-    return "value-warning"; // Żółty podczas uruchamiania
+    return "value-warning";  // Żółty podczas uruchamiania
   }
-  
-  return "value-success"; // Zielony gdy aktywny i stabilny
+
+  return "value-success";  // Zielony gdy aktywny i stabilny
 }
 
 void SubwooferWebServer::handleRoot() {
@@ -946,35 +1039,43 @@ body.light-theme .toast-notification.danger {
           <div class='form-grid'>
             <div class='form-group'>
               <label>Hold time [s]</label>
-              <input name='czas' type='number' value=')rawliteral" + String(config->getCzasPoSyg()) + R"rawliteral(' min='5' max='600'>
+              <input name='czas' type='number' value=')rawliteral"
+                + String(config->getCzasPoSyg()) + R"rawliteral(' min='5' max='600'>
             </div>
             <div class='form-group'>
               <label>Min voltage [V]</label>
-              <input name='napiecie' type='number' step='0.1' value=')rawliteral" + String(config->getProgNapiecia(), 1) + R"rawliteral(' min='11' max='15'>
+              <input name='napiecie' type='number' step='0.1' value=')rawliteral"
+                + String(config->getProgNapiecia(), 1) + R"rawliteral(' min='11' max='15'>
             </div>
             <div class='form-group'>
               <label>Audio threshold [V]</label>
-              <input name='audio' type='number' step='0.001' value=')rawliteral" + String(config->getAudioThreshold(), 3) + R"rawliteral(' min='0.1' max='3'>
+              <input name='audio' type='number' step='0.001' value=')rawliteral"
+                + String(config->getAudioThreshold(), 3) + R"rawliteral(' min='0.1' max='3'>
             </div>
             <div class='form-group'>
               <label>Fan start [°C]</label>
-              <input name='tmin' type='number' step='0.1' value=')rawliteral" + String(config->getTempMin(), 1) + R"rawliteral(' min='30' max='70'>
+              <input name='tmin' type='number' step='0.1' value=')rawliteral"
+                + String(config->getTempMin(), 1) + R"rawliteral(' min='30' max='70'>
             </div>
             <div class='form-group'>
               <label>Warning temp [°C]</label>
-              <input name='tprzegrz' type='number' step='0.1' value=')rawliteral" + String(config->getTempPrzegrzania(), 1) + R"rawliteral(' min='40' max='85'>
+              <input name='tprzegrz' type='number' step='0.1' value=')rawliteral"
+                + String(config->getTempPrzegrzania(), 1) + R"rawliteral(' min='40' max='85'>
             </div>
             <div class='form-group'>
               <label>Critical temp [°C]</label>
-              <input name='tmax' type='number' step='0.1' value=')rawliteral" + String(config->getTempMax(), 1) + R"rawliteral(' min='50' max='100'>
+              <input name='tmax' type='number' step='0.1' value=')rawliteral"
+                + String(config->getTempMax(), 1) + R"rawliteral(' min='50' max='100'>
             </div>
             <div class='form-group'>
               <label>Cool stop [°C]</label>
-              <input name='savetemp' type='number' step='0.1' value=')rawliteral" + String(config->getTempSave(), 1) + R"rawliteral(' min='30' max='70'>
+              <input name='savetemp' type='number' step='0.1' value=')rawliteral"
+                + String(config->getTempSave(), 1) + R"rawliteral(' min='30' max='70'>
             </div>
             <div class='form-group'>
               <label>Relay delay [ms]</label>
-              <input name='delayrelay' type='number' value=')rawliteral" + String(config->getDelayRelaySwitch()) + R"rawliteral(' min='100' max='10000'>
+              <input name='delayrelay' type='number' value=')rawliteral"
+                + String(config->getDelayRelaySwitch()) + R"rawliteral(' min='100' max='10000'>
             </div>
           </div>
         </form>
@@ -1003,7 +1104,8 @@ body.light-theme .toast-notification.danger {
   </div>
 
 <script>
-let currentHoldTime = )rawliteral" + String(config->getCzasPoSyg()) + R"rawliteral(;
+let currentHoldTime = )rawliteral"
+                + String(config->getCzasPoSyg()) + R"rawliteral(;
 let holdTimer = null;
 let holdProgress = 0;
 let holdInterval = null;
@@ -1950,19 +2052,19 @@ void SubwooferWebServer::handleSet() {
     config->setDelayRelaySwitch(server.arg("delayrelay").toInt());
     changed = true;
   }
-  
+
   if (changed) {
     logger->addLog("WEB CONFIG", "info", "Ustawienia zmienione przez interfejs web");
     config->saveSettings();
   }
-  
+
   server.sendHeader("Location", "/");
   server.send(302, "text/plain", "");
 }
 
 void SubwooferWebServer::handleTrigger() {
   lastAudioDetected = millis();
-  
+
   if (!relayController->isActive() && relayController->isIdle()) {
     relayController->startupSequence();
   } else {
@@ -1984,22 +2086,22 @@ void SubwooferWebServer::handleForceShutdown() {
 void SubwooferWebServer::handleFastData() {
   float adc = analogRead(batteryPin);  // Używamy zapisanego pinu baterii
   float napiecie = ((adc) / 4095.0) * 3.3 * (47 + 12) / 12;
-  
+
   DynamicJsonDocument doc(400);
   doc["batt"] = String(napiecie, 2);
   doc["audio"] = String(sensorManager->getFilteredAudio(), 3);
   doc["relays"] = relayController->isActive();
   doc["relayStatus"] = getRelayStatusText();
   doc["relayStatusClass"] = getRelayStatusClass();
-  
+
   // Dodaj informację o czasie pozostałym do wyłączenia
   if (relayController->isActive()) {
     unsigned long currentTime = millis();
-    unsigned long elapsedTime = (currentTime - lastAudioDetected) / 1000; // w sekundach
+    unsigned long elapsedTime = (currentTime - lastAudioDetected) / 1000;  // w sekundach
     long timeRemaining = (long)config->getCzasPoSyg() - (long)elapsedTime;
     doc["timeRemaining"] = max(0L, timeRemaining);
   }
-  
+
   String json;
   serializeJson(doc, json);
   server.send(200, "application/json", json);
@@ -2008,10 +2110,10 @@ void SubwooferWebServer::handleFastData() {
 void SubwooferWebServer::handleData() {
   sensors.requestTemperatures();
   float temp = sensors.getTempCByIndex(0);
-  
+
   DynamicJsonDocument doc(100);
   doc["temp"] = String(temp, 1);
-  
+
   String json;
   serializeJson(doc, json);
   server.send(200, "application/json", json);
