@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <DNSServer.h>  // DNS
+
 #include "ConfigManager.h"
 #include "ConsoleLogger.h"
 #include "RelayController.h"
@@ -12,6 +14,7 @@
 class SubwooferWebServer {
 private:
   WebServer server;
+  DNSServer dnsServer;  // DNS
   ConfigManager* config;
   ConsoleLogger* logger;
   RelayController* relayController;
@@ -19,11 +22,11 @@ private:
   bool active;
   unsigned long startTime;
   int connectedClients;
-  int batteryPin;  // Dodane pole dla pinu baterii
+  int batteryPin;
   const unsigned long WIFI_TIMEOUT = 120000;  // 2 minuty
   const char* nazwaWifi = "Subwoofer";
   const char* hasloWifi = "Subwoofer321";
-  
+
   void setupRoutes();
   void handleRoot();
   void handleSet();
@@ -35,8 +38,7 @@ private:
   void handleHelp();
   void handleFactory();
   void handleRestart();
-  
-  // Dodane metody dla lepszego zarządzania statusem przekaźników
+
   String getRelayStatusText();
   String getRelayStatusClass();
 
