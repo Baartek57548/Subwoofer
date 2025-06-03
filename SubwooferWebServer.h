@@ -35,6 +35,10 @@ private:
   void handleHelp();
   void handleFactory();
   void handleRestart();
+  
+  // Dodane metody dla lepszego zarządzania statusem przekaźników
+  String getRelayStatusText();
+  String getRelayStatusClass();
 
 public:
   SubwooferWebServer();
