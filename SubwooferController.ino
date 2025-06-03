@@ -83,6 +83,8 @@ void setup() {
   // Inicjalizacja serwera WWW - przekazujemy pin baterii
   webServer.init(&configManager, &logger, &relayController, &sensorManager, BATT_SIG);
 
+  delay(500);
+
   // Wyświetl informacje startowe
   Serial.println("\n\n\n\n");
   Serial.println("ESP32C3 sterownik Subwoofera - pomiar audio, napiecia akumulatora, temperatury, przekaźników.");
