@@ -119,19 +119,14 @@ void loop() {
 
   // Odczyt czujników
   bool napiecieOk = sensorManager.readBattery(configManager.getProgNapiecia());
-  bool przycisk = (digitalRead(PRZYCISK_PIN) == LOW);
   bool audioDetected = sensorManager.readAudio(configManager.getAudioThreshold(), &logger, uartManager.isActive());
 
   unsigned long currentTime = millis();
 
   // Logika sterowania
   if (napiecieOk) {
-    if (audioDetected || przycisk) {
+    if (audioDetected) {
       lastAudioDetected = currentTime;
-      if (przycisk) {
-        Serial.println("Czas podtrzymania zrestartowany");
-        logger.addLog("BUTTON", "info", "Przycisk naciśnięty - restart timera");
-      }
       if (!relayController.isActive() && relayController.isIdle()) {
         relayController.startupSequence();
       }
@@ -198,36 +193,53 @@ void loop() {
     }
   }
 
-  // Obsługa długiego przytrzymania przycisku
-  przycisk = (digitalRead(PRZYCISK_PIN) == LOW);
+  // Obsługa krótkiego i długiego naciśnięcia przycisku
+  bool przyciskAktualny = (digitalRead(PRZYCISK_PIN) == LOW);
   unsigned long teraz = millis();
 
-  if (przycisk) {
-    if (!przyciskTrzymany) {
-      przyciskStart = teraz;
-      przyciskTrzymany = true;
-    } else if (teraz - przyciskStart >= 3000) {
-      Serial.println("Przycisk przytrzymany 5s – aktywuję UART i WiFi");
-      logger.addLog("BUTTON", "info", "Przycisk przytrzymany 5s - aktywacja serwisów");
+  // Obsługa wciśnięcia przycisku
+  if (przyciskAktualny && !przyciskTrzymany) {
+    // Początek naciśnięcia przycisku
+    przyciskStart = teraz;
+    przyciskTrzymany = true;
+  } 
+  // Obsługa długiego przytrzymania (4 sekundy)
+  else if (przyciskAktualny && przyciskTrzymany && (teraz - przyciskStart >= 4000)) {
+    Serial.println("Przycisk przytrzymany 4s – ponowne uruchomienie UART i WiFi");
+    logger.addLog("BUTTON", "info", "Przycisk przytrzymany 4s - restart serwisów");
 
-      if (!uartManager.isActive()) {
-        uartManager.activate();
-        logger.addLog("UART", "success", "UART ponownie aktywowany");
-      }
+    // Restart obsługi UART
+    uartManager.activate();
+    logger.addLog("UART", "success", "UART ponownie aktywowany");
 
-      if (!webServer.isActive()) {
-        webServer.activate();
-        logger.addLog("WIFI", "success", "WiFi AP ponownie aktywowany");
+    // Restart obsługi WiFi
+    webServer.activate();
+    logger.addLog("WIFI", "success", "WiFi AP ponownie aktywowany");
 
-        for (int i = 0; i < 10; i++) {
-          analogRead(AUDIO_SIG);
-          delay(20);
-        }
-      }
-
-      przyciskTrzymany = false;
+    for (int i = 0; i < 10; i++) {
+      analogRead(AUDIO_SIG);
+      delay(20);
     }
-  } else {
+
+    // Reset stanu przycisku po wykonaniu akcji
+    przyciskTrzymany = false;
+  } 
+  // Obsługa zwolnienia przycisku (krótkie naciśnięcie)
+  else if (!przyciskAktualny && przyciskTrzymany) {
+    // Przycisk został zwolniony
+    if (teraz - przyciskStart < 1000) {  // Krótsze niż 1 sekunda = kliknięcie
+      Serial.println("Przycisk kliknięty - uruchamiam sekwencję");
+      logger.addLog("BUTTON", "info", "Przycisk kliknięty - uruchomienie sekwencji");
+      
+      // Uruchomienie sekwencji - restart timera podtrzymania
+      lastAudioDetected = teraz;
+      
+      // Uruchomienie sekwencji jeśli system jest nieaktywny
+      if (!relayController.isActive() && relayController.isIdle()) {
+        relayController.startupSequence();
+      }
+    }
+    // Reset stanu przycisku
     przyciskTrzymany = false;
   }
   
