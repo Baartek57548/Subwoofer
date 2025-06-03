@@ -67,6 +67,40 @@ void SubwooferWebServer::setupRoutes() {
   server.on("/restart", HTTP_GET, [this]() { handleRestart(); });
 }
 
+// Nowe metody dla lepszego zarządzania statusem przekaźników
+String SubwooferWebServer::getRelayStatusText() {
+  if (!relayController->isActive()) {
+    // Sprawdź czy system jest w trakcie wyłączania
+    if (!relayController->isIdle()) {
+      return "STOPPING";
+    }
+    return "OFF";
+  }
+  
+  // System jest aktywny - sprawdź czy w trakcie sekwencji
+  if (!relayController->isIdle()) {
+    return "STARTING";
+  }
+  
+  // System jest aktywny i w trybie idle (normalnej pracy)
+  return "ACTIVE";
+}
+
+String SubwooferWebServer::getRelayStatusClass() {
+  if (!relayController->isActive()) {
+    if (!relayController->isIdle()) {
+      return "value-warning"; // Żółty podczas wyłączania
+    }
+    return "value-inactive"; // Szary gdy wyłączony
+  }
+  
+  if (!relayController->isIdle()) {
+    return "value-warning"; // Żółty podczas uruchamiania
+  }
+  
+  return "value-success"; // Zielony gdy aktywny i stabilny
+}
+
 void SubwooferWebServer::handleRoot() {
   String html = R"rawliteral(
 <!DOCTYPE html><html lang='pl'><head>
@@ -707,7 +741,7 @@ body.light-theme .btn-danger {
   height: 100%;
   background: linear-gradient(90deg, #4ade80, #22c55e);
   border-radius: 4px;
-  transition: width 0.1s ease, background 0.3s ease;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
   width: 100%;
 }
 
@@ -1142,7 +1176,8 @@ function toggleSection(header) {
 
 // Zoptymalizowane aktualizacje z inteligentnym interwałem
 async function updateReadings() {
-  const data = await optimizedFetch('/fastdata', 'fastData', 300); // Cache na 300ms
+  // Dla timera używamy krótszego cache - 100ms zamiast 300ms
+  const data = await optimizedFetch('/fastdata', 'fastData', 100);
   if (!data) return;
   
   // Batch DOM updates
@@ -1174,7 +1209,7 @@ async function updateReadings() {
     });
   }
   
-  if (data.relays !== fastDataCache.relays) {
+  if (data.relays !== fastDataCache.relays || data.relayStatus !== fastDataCache.relayStatus) {
     updates.push(() => {
       const timerBar = document.getElementById('timerBar');
       if (data.relays) {
@@ -1182,8 +1217,8 @@ async function updateReadings() {
         relaysBadge.className = 'status-value ' + (data.relayStatusClass || 'value-success');
         timerBar.classList.add('active');
       } else {
-        relaysBadge.textContent = 'OFF';
-        relaysBadge.className = 'status-value value-warning';
+        relaysBadge.textContent = data.relayStatus || 'OFF';
+        relaysBadge.className = 'status-value ' + (data.relayStatusClass || 'value-inactive');
         timerBar.classList.remove('active');
         
         if (localCountdownInterval) {
@@ -1193,6 +1228,7 @@ async function updateReadings() {
       }
     });
     fastDataCache.relays = data.relays;
+    fastDataCache.relayStatus = data.relayStatus;
   }
   
   // Wykonaj wszystkie aktualizacje DOM jednocześnie
@@ -1202,16 +1238,34 @@ async function updateReadings() {
     });
   }
   
-  // Timer handling
+  // Timer handling - dodaj debugging
   if (data.relays && data.timeRemaining !== undefined) {
-    lastServerTime = Date.now();
-    lastServerTimeRemaining = Math.max(0, data.timeRemaining);
+    const newServerTime = Date.now();
+    const newTimeRemaining = Math.max(0, data.timeRemaining);
+    
+    console.log('Server timer data:', {
+      relays: data.relays,
+      timeRemaining: data.timeRemaining,
+      newTimeRemaining: newTimeRemaining
+    });
+    
+    // Zawsze synchronizuj gdy system jest aktywny
+    lastServerTime = newServerTime;
+    lastServerTimeRemaining = newTimeRemaining;
+    console.log('Timer synchronized from server:', lastServerTimeRemaining);
     
     if (!localCountdownInterval) {
       startLocalCountdown();
     }
-    
-    updateTimerDisplay(lastServerTimeRemaining);
+  } else if (!data.relays) {
+    // System nieaktywny - zatrzymaj timer
+    if (localCountdownInterval) {
+      clearInterval(localCountdownInterval);
+      localCountdownInterval = null;
+      console.log('Timer stopped - system inactive');
+    }
+  } else {
+    console.log('No timer data received:', data);
   }
 }
 
@@ -1220,32 +1274,56 @@ function startLocalCountdown() {
     clearInterval(localCountdownInterval);
   }
   
+  console.log('Starting local countdown with time:', lastServerTimeRemaining);
+  
   localCountdownInterval = setInterval(() => {
     if (!isSystemActive) {
       clearInterval(localCountdownInterval);
       localCountdownInterval = null;
+      console.log('Countdown stopped - system inactive');
       return;
     }
     
+    // Oblicz czas który minął od ostatniej aktualizacji serwera
     const timeSinceLastUpdate = (Date.now() - lastServerTime) / 1000;
     const currentTimeRemaining = Math.max(0, lastServerTimeRemaining - timeSinceLastUpdate);
     
+    // Aktualizuj wyświetlanie
     updateTimerDisplay(currentTimeRemaining);
     
+    // Zatrzymaj timer gdy czas się skończył
     if (currentTimeRemaining <= 0) {
       clearInterval(localCountdownInterval);
       localCountdownInterval = null;
+      console.log('Countdown finished');
     }
-  }, 100);
+  }, 200); // Zmniejszone z powrotem do 200ms dla lepszej responsywności
 }
 
-// Zoptymalizowane wyświetlanie timera
+// Zoptymalizowane wyświetlanie timera z lepszą interpolacją
+let lastDisplayedTime = 0;
+let smoothingFactor = 0.15; // Mniejszy współczynnik = płynniejsze przejścia
+
 function updateTimerDisplay(timeRemaining) {
+  console.log('updateTimerDisplay called with:', timeRemaining);
+  
   const timerBar = document.getElementById('timerBar');
   const timerTime = document.getElementById('timerTime');
   const timerProgressBar = document.getElementById('timerProgressBar');
   
+  if (!timerTime || !timerProgressBar) return;
+  
+  // Usuń interpolację tymczasowo dla debugowania
+  // if (lastDisplayedTime > 0) {
+  //   const timeDiff = Math.abs(timeRemaining - lastDisplayedTime);
+  //   if (timeDiff > 1) {
+  //     timeRemaining = lastDisplayedTime + (timeRemaining - lastDisplayedTime) * smoothingFactor;
+  //   }
+  // }
+  // lastDisplayedTime = timeRemaining;
+  
   if (timeRemaining > 0) {
+    console.log('Displaying time:', timeRemaining);
     const minutes = Math.floor(timeRemaining / 60);
     const seconds = timeRemaining % 60;
     const displaySeconds = Math.floor(seconds * 10) / 10;
@@ -1254,14 +1332,18 @@ function updateTimerDisplay(timeRemaining) {
       `${minutes}:${displaySeconds.toFixed(1).padStart(4, '0')}` : 
       `${displaySeconds.toFixed(1)}s`;
     
-    if (timerTime.textContent !== timeText) {
-      timerTime.textContent = timeText;
-    }
+    // Zawsze aktualizuj tekst czasu
+    timerTime.textContent = timeText;
+    console.log('Set timer text to:', timeText);
     
-    // Calculate progress percentage (assuming max time from config)
+    // Calculate progress percentage
     const maxTime = currentHoldTime;
-    const progressPercent = Math.max(0, (timeRemaining / maxTime) * 100);
-    timerProgressBar.style.width = progressPercent + '%';
+    const progressPercent = Math.max(0, Math.min(100, (timeRemaining / maxTime) * 100));
+    
+    // Użyj requestAnimationFrame dla płynnej animacji
+    requestAnimationFrame(() => {
+      timerProgressBar.style.width = progressPercent + '%';
+    });
     
     // Update colors based on time remaining
     let timeClass = '';
@@ -1275,13 +1357,23 @@ function updateTimerDisplay(timeRemaining) {
       progressClass = 'warning';
     }
     
-    timerTime.className = `timer-time ${timeClass}`;
-    timerProgressBar.className = `timer-progress-bar ${progressClass}`;
+    const newTimeClassName = `timer-time ${timeClass}`;
+    const newProgressClassName = `timer-progress-bar ${progressClass}`;
+    
+    if (timerTime.className !== newTimeClassName) {
+      timerTime.className = newTimeClassName;
+    }
+    if (timerProgressBar.className !== newProgressClassName) {
+      timerProgressBar.className = newProgressClassName;
+    }
   } else {
+    console.log('Time remaining is 0 or negative, showing SHUTTING DOWN');
     timerTime.textContent = 'SHUTTING DOWN';
     timerTime.className = 'timer-time critical';
-    timerProgressBar.style.width = '0%';
-    timerProgressBar.className = 'timer-progress-bar critical';
+    requestAnimationFrame(() => {
+      timerProgressBar.style.width = '0%';
+    });
+    timerProgressBar.className = `timer-progress-bar critical`;
   }
 }
 
@@ -1396,8 +1488,8 @@ function addLocalLog(operation, status, message) {
 
 // Inteligentne zarządzanie interwałami
 function startUpdates() {
-  // Krytyczne dane - często
-  updateIntervals.fast = setInterval(updateReadings, 400);
+  // Krytyczne dane - rzadziej dla mniejszego szarpania (500ms zamiast 300ms)
+  updateIntervals.fast = setInterval(updateReadings, 500);
   
   // Temperatura - rzadziej
   updateIntervals.temp = setInterval(updateTemperature, 3000);
@@ -1897,8 +1989,8 @@ void SubwooferWebServer::handleFastData() {
   doc["batt"] = String(napiecie, 2);
   doc["audio"] = String(sensorManager->getFilteredAudio(), 3);
   doc["relays"] = relayController->isActive();
-  doc["relayStatus"] = relayController->getStatusText();
-  doc["relayStatusClass"] = relayController->getStatusClass();
+  doc["relayStatus"] = getRelayStatusText();
+  doc["relayStatusClass"] = getRelayStatusClass();
   
   // Dodaj informację o czasie pozostałym do wyłączenia
   if (relayController->isActive()) {
@@ -1980,7 +2072,7 @@ void SubwooferWebServer::handleHelp() {
         <li><strong>Temperature</strong> – Current amplifier temperature</li>
         <li><strong>Battery</strong> – Current battery voltage</li>
         <li><strong>Audio</strong> – Audio signal level detection</li>
-        <li><strong>Relays</strong> – Power relay status (ACTIVE/OFF)</li>
+        <li><strong>Relays</strong> – Power relay status (STARTING/ACTIVE/STOPPING/OFF)</li>
         <li><strong>Shutdown Timer</strong> – Countdown to automatic shutdown (only when relays are active)</li>
       </ul>
     </div>
@@ -2014,10 +2106,9 @@ void SubwooferWebServer::handleHelp() {
       <h3>📟 Console Logs</h3>
       <p>Real-time system events monitoring:</p>
       <ul>
-        <li><strong>STARTUP/SHUTDOWN</strong> – System power sequences</li>
+        <li><strong>STARTUP/SHUTDOWN</strong> – System power sequences (STARTING/STOPPING)</li>
         <li><strong>SAVE</strong> – Configuration changes saved</li>
         <li><strong>TRIGGER RELAYS</strong> – Manual relay activation</li>
-        
         <li><strong>AUDIO</strong> – Audio signal detection events</li>
         <li><strong>TEMPERATURE</strong> – Temperature warnings and cooling</li>
         <li><strong>BATTERY</strong> – Low voltage warnings</li>
